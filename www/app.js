@@ -1,7 +1,13 @@
 /* =========================================================================
-   DISCOGRAFÍA MOBILE v7.1.1 — Modo consulta (APK / WebView)
+   DISCOGRAFÍA MOBILE v7.1.2 — Modo consulta (APK / WebView)
    Read-only + Import prioritario · localStorage persistente
    Autor: HDSystem IT · Tel: +54 9 11 4563-0851
+
+   v7.1.2 — Fixes:
+     - Store.allCDs() devuelve [] si App.db es null (elimina TypeError)
+     - Store.totalArtists() devuelve 0 si App.db es null
+     - Guardas defensivas en todos los métodos que tocan App.db
+     - Filter.apply() y UI.render*() con validaciones
 
    v7.1.1 — Fixes de auditoría:
      - Back button Android corregido (pushBackIfNeeded en cada open)
@@ -16,7 +22,7 @@
 
 'use strict';
 
-const APP_VERSION = '7.1.1';
+const APP_VERSION = '7.1.2';
 const STORAGE_KEY = 'discografia_mobile_data_v1';
 const PREFS_KEY   = 'discografia_mobile_prefs_v1';
 const LEGAL_KEY   = 'discografia_mobile_legal_v1';
@@ -107,7 +113,7 @@ const Prefs = {
 };
 
 /* ═══════════════════════════════════════════════════════════════════
-   Toast — v7.1.1 resuelve container dinámicamente
+   Toast — resuelve container dinámicamente
    ═══════════════════════════════════════════════════════════════════ */
 const Toast = (() => {
   const icons = { ok: '✓', err: '✕', warn: '⚠', info: 'ℹ' };
@@ -128,7 +134,7 @@ const Toast = (() => {
 })();
 
 /* ═══════════════════════════════════════════════════════════════════
-   Store de datos
+   Store de datos — v7.1.2 con guards defensivos
    ═══════════════════════════════════════════════════════════════════ */
 const Store = {
   hydrate(cd) {
@@ -279,7 +285,9 @@ const Store = {
     }
   },
 
+  /* v7.1.2 — GUARD: devuelve [] si App.db es null */
   allCDs() {
+    if (!App.db) return [];
     if (App.allCDsCache) return App.allCDsCache;
     const out = [];
     for (const k in App.db.categories) {
@@ -291,12 +299,18 @@ const Store = {
     return out;
   },
 
+  /* v7.1.2 — GUARD explícito */
   getCDsByCat(catKey) {
-    return App.db?.categories?.[catKey]?.cds || [];
+    if (!App.db) return [];
+    if (!catKey) return [];
+    return App.db.categories?.[catKey]?.cds || [];
   },
 
+  /* v7.1.2 — GUARD explícito */
   getCategory(catKey) {
-    return App.db?.categories?.[catKey] || null;
+    if (!App.db) return null;
+    if (!catKey) return null;
+    return App.db.categories?.[catKey] || null;
   },
 
   clear() {
@@ -311,11 +325,15 @@ const Store = {
     App.currentCD = null;
   },
 
+  /* v7.1.2 — GUARD: devuelve 0 si App.db es null */
   total() {
+    if (!App.db) return 0;
     return this.allCDs().length;
   },
 
+  /* v7.1.2 — GUARD: devuelve 0 si App.db es null */
   totalArtists() {
+    if (!App.db) return 0;
     const set = new Set();
     for (const { cd } of this.allCDs()) {
       if (cd.interprete) set.add(cd.interprete);
@@ -329,7 +347,9 @@ const Store = {
    ═══════════════════════════════════════════════════════════════════ */
 const Filter = {
   apply() {
+    /* v7.1.2 — GUARD doble */
     if (!App.db) { App.filteredCache = []; return []; }
+    if (!App.db.categories) { App.filteredCache = []; return []; }
 
     const q = norm(App.q).trim();
     const terms = q ? q.split(/\s+/).filter(Boolean) : [];
@@ -455,7 +475,7 @@ const UI = {
 
     const sub = $('#headerSubtitle');
     if (sub) {
-      const n = Object.keys(App.db.categories).length;
+      const n = Object.keys(App.db.categories || {}).length;
       sub.textContent = n + ' categoría' + (n === 1 ? '' : 's');
     }
 
@@ -467,7 +487,8 @@ const UI = {
     const el = $('#catNav');
     if (!el) return;
 
-    if (!App.db) {
+    /* v7.1.2 — GUARD */
+    if (!App.db || !App.db.categories) {
       el.hidden = true;
       el.innerHTML = '';
       return;
@@ -517,6 +538,7 @@ const UI = {
     const el = $('#subcatNav');
     if (!el) return;
 
+    /* v7.1.2 — GUARD */
     if (!App.db || !App.cat || App.cat === '__all__') {
       el.hidden = true;
       el.innerHTML = '';
@@ -612,6 +634,7 @@ const UI = {
     const list = $('#cdList');
     if (!list) return;
 
+    /* v7.1.2 — GUARD */
     if (!App.db) {
       list.innerHTML = '';
       return;
@@ -1003,7 +1026,7 @@ function isValidUrl(url) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   Lightbox — v7.1.1 con manejo de error
+   Lightbox
    ═══════════════════════════════════════════════════════════════════ */
 const Lightbox = {
   open(url, caption) {
@@ -1197,7 +1220,7 @@ const StatsModal = {
       ).join('')}</ul>`;
     };
 
-    const cats = Object.keys(App.db.categories).length;
+    const cats = Object.keys(App.db.categories || {}).length;
 
     body.innerHTML = `
       <div class="stats-grid">
@@ -1410,7 +1433,7 @@ function bindEvents() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   Back button Android — v7.1.1 corregido
+   Back button Android
    ═══════════════════════════════════════════════════════════════════ */
 function handleBackButton() {
   if (isVisible('#lightbox')) { Lightbox.close(); return; }
@@ -1423,7 +1446,6 @@ function handleBackButton() {
   /* Si no hay nada abierto → comportamiento default (salir de la app) */
 }
 
-/* v7.1.1 — pushState con URL explícita (compatibilidad WebView) */
 function pushBackIfNeeded() {
   try {
     if (window.history && window.history.pushState) {
@@ -1437,7 +1459,7 @@ function pushBackIfNeeded() {
    ═══════════════════════════════════════════════════════════════════ */
 function init() {
   Prefs.load();
-  bindEvents();              /* primero el listener */
+  bindEvents();
   const loaded = Store.loadFromStorage();
   UI.renderAll();
 
