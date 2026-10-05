@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' capacitor://localhost https://localhost; img-src 'self' data: blob: https: capacitor:; media-src 'self' blob:; connect-src 'self' capacitor://localhost https://localhost https://*; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0e1116">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Discografía — Consulta</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     HEADER
+     ═══════════════════════════════════════════════════════════ -->
+<header class="app-header">
+  <div class="header-row">
+    <div class="header-brand">
+      <span class="brand-icon" aria-hidden="true"></span>
+      <div class="brand-text">
+        <h1>Discografía</h1>
+        <small id="headerSubtitle">Modo consulta</small>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="icon-btn" id="btnImport" aria-label="Importar colección" title="Importar colección">
+        <span class="ico">📥</span>
+      </button>
+      <button type="button" class="icon-btn" id="btnTheme" aria-label="Tema" title="Cambiar tema">
+        <span class="ico" id="themeIco">🌙</span>
+      </button>
+      <button type="button" class="icon-btn" id="btnMore" aria-label="Más" title="Más opciones">
+        <span class="ico">⋮</span>
+      </button>
+    </div>
+  </div>
+  <div class="header-stats" id="headerStats" hidden>
+    <span class="stat-chip"><b id="statTotal">0</b> CDs</span>
+    <span class="stat-chip"><b id="statArts">0</b> intérpretes</span>
+    <span class="stat-chip" id="statUpdatedChip" hidden></span>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════════
+     BÚSQUEDA
+     ═══════════════════════════════════════════════════════════ -->
+<div class="search-bar" id="searchBar" hidden>
+  <div class="search-input-wrap">
+    <span class="search-ico">🔍</span>
+    <input type="search" id="q" placeholder="Buscar título o intérprete…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="search" enterkeyhint="search">
+    <button type="button" class="search-clear" id="clearQ" aria-label="Limpiar">✕</button>
+  </div>
+  <button type="button" class="filter-btn" id="btnFiltros" aria-label="Filtros">
+    <span>⚙️</span>
+    <span class="filter-badge" id="filterBadge" hidden>0</span>
+  </button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     CATEGORÍAS
+     ═══════════════════════════════════════════════════════════ -->
+<nav class="cat-nav" id="catNav" role="tablist" aria-label="Categorías" hidden></nav>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SUBCATEGORÍAS
+     ═══════════════════════════════════════════════════════════ -->
+<nav class="subcat-nav" id="subcatNav" role="tablist" aria-label="Subcategorías" hidden></nav>
+
+<!-- ═══════════════════════════════════════════════════════════
+     FILTROS ACTIVOS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="active-filters" id="activeFilters" hidden></div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MAIN
+     ═══════════════════════════════════════════════════════════ -->
+<main class="app-main">
+  <div class="list-info" id="listInfo" hidden></div>
+  <ul class="cd-list" id="cdList" role="list"></ul>
+
+  <!-- Empty state inicial (sin datos) -->
+  <div class="empty-state" id="emptyInitial">
+    <div class="empty-hero">
+      <span class="empty-icon">💿</span>
+      <h2>Tu colección no está cargada</h2>
+      <p>Importá el archivo <code>.json</code> que exportaste desde la app de escritorio.</p>
+    </div>
+    <div class="empty-actions">
+      <button type="button" class="btn-primary btn-large" id="btnImportEmpty">
+        <span class="ico">📥</span>
+        <span>Importar colección</span>
+      </button>
+      <button type="button" class="btn-secondary" id="btnPasteEmpty">
+        <span class="ico">📋</span>
+        <span>Pegar contenido JSON</span>
+      </button>
+    </div>
+    <p class="empty-hint">
+      💡 El archivo lo generás en la app de escritorio: <b>Exportar → JSON completo</b>
+    </p>
+  </div>
+
+  <!-- Empty state búsqueda -->
+  <div class="empty-state" id="emptySearch" hidden>
+    <div class="empty-hero">
+      <span class="empty-icon">🔍</span>
+      <h2>Sin resultados</h2>
+      <p id="emptySearchMsg">No hay CDs que coincidan con la búsqueda.</p>
+    </div>
+    <button type="button" class="btn-secondary" id="btnClearSearch">Limpiar filtros</button>
+  </div>
+</main>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SHEET DE FILTROS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="sheet-overlay" id="sheetOverlay" hidden></div>
+<aside class="sheet" id="filterSheet" hidden aria-label="Filtros">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <h2>Filtros</h2>
+    <button type="button" class="sheet-close" id="sheetClose" aria-label="Cerrar">✕</button>
+  </div>
+  <div class="sheet-body">
+    <div class="field">
+      <label for="fArtista">Intérprete</label>
+      <select id="fArtista"><option value="">Todos</option></select>
+    </div>
+    <div class="field">
+      <label for="fAnioDesde">Año desde</label>
+      <input type="number" id="fAnioDesde" min="1900" max="2100" placeholder="Ej: 1960" inputmode="numeric">
+    </div>
+    <div class="field">
+      <label for="fAnioHasta">Año hasta</label>
+      <input type="number" id="fAnioHasta" min="1900" max="2100" placeholder="Ej: 2026" inputmode="numeric">
+    </div>
+    <div class="field">
+      <label for="fSello">Sello</label>
+      <select id="fSello"><option value="">Todos</option></select>
+    </div>
+    <div class="field">
+      <label for="fGenero">Género</label>
+      <select id="fGenero"><option value="">Todos</option></select>
+    </div>
+    <div class="field">
+      <label for="fPortada">Portada</label>
+      <select id="fPortada">
+        <option value="">Todas</option>
+        <option value="__con__">Con portada</option>
+        <option value="__sin__">Sin portada</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="fPrestamo">Préstamo</label>
+      <select id="fPrestamo">
+        <option value="">Todos</option>
+        <option value="__prestados__">Prestados</option>
+        <option value="__disponibles__">Disponibles</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="fOrden">Orden</label>
+      <select id="fOrden">
+        <option value="nro">Nº (menor a mayor)</option>
+        <option value="nro-desc">Nº (mayor a menor)</option>
+        <option value="titulo">Título (A-Z)</option>
+        <option value="titulo-desc">Título (Z-A)</option>
+        <option value="interprete">Intérprete (A-Z)</option>
+        <option value="anio">Año (menor a mayor)</option>
+        <option value="anio-desc">Año (mayor a menor)</option>
+      </select>
+    </div>
+  </div>
+  <div class="sheet-foot">
+    <button type="button" class="btn-secondary" id="btnClearFilters">Limpiar</button>
+    <button type="button" class="btn-primary" id="btnApplyFilters">Aplicar</button>
+  </div>
+</aside>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SHEET DE MÁS OPCIONES
+     ═══════════════════════════════════════════════════════════ -->
+<div class="sheet-overlay" id="moreOverlay" hidden></div>
+<aside class="sheet" id="moreSheet" hidden aria-label="Más opciones">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <h2>Más opciones</h2>
+    <button type="button" class="sheet-close" id="moreClose" aria-label="Cerrar">✕</button>
+  </div>
+  <div class="sheet-body sheet-body-list">
+    <button type="button" class="sheet-action" id="moreImport">
+      <span class="ico">📥</span>
+      <div>
+        <b>Importar colección</b>
+        <small>Cargar un archivo JSON</small>
+      </div>
+    </button>
+    <button type="button" class="sheet-action" id="morePaste">
+      <span class="ico">📋</span>
+      <div>
+        <b>Pegar JSON</b>
+        <small>Copiar y pegar el contenido</small>
+      </div>
+    </button>
+    <button type="button" class="sheet-action" id="moreStats">
+      <span class="ico">📊</span>
+      <div>
+        <b>Estadísticas</b>
+        <small>Datos de la colección</small>
+      </div>
+    </button>
+    <button type="button" class="sheet-action" id="moreLegal">
+      <span class="ico">⚖️</span>
+      <div>
+        <b>Aviso legal</b>
+        <small>Términos de uso</small>
+      </div>
+    </button>
+    <button type="button" class="sheet-action danger" id="moreClear">
+      <span class="ico">🗑️</span>
+      <div>
+        <b>Borrar datos guardados</b>
+        <small>Quitar la colección del celular</small>
+      </div>
+    </button>
+    <div class="sheet-version" id="sheetVersion"></div>
+  </div>
+</aside>
+
+<!-- ═══════════════════════════════════════════════════════════
+     DETALLE DEL CD
+     ═══════════════════════════════════════════════════════════ -->
+<div class="detail-overlay" id="detailOverlay" hidden></div>
+<aside class="detail-sheet" id="detailSheet" hidden aria-label="Detalle del CD">
+  <div class="detail-head">
+    <button type="button" class="detail-back" id="detailBack" aria-label="Volver">‹</button>
+    <h2 id="detailTitle">Detalle</h2>
+    <div class="detail-spacer"></div>
+  </div>
+  <div class="detail-body" id="detailBody"></div>
+</aside>
+
+<!-- ═══════════════════════════════════════════════════════════
+     LIGHTBOX PORTADA
+     ═══════════════════════════════════════════════════════════ -->
+<div class="lightbox" id="lightbox" hidden>
+  <button type="button" class="lb-close" id="lbClose" aria-label="Cerrar">✕</button>
+  <img id="lbImg" src="" alt="">
+  <div class="lb-info" id="lbInfo"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MODAL IMPORTAR
+     ═══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="importModal" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h2>Importar colección</h2>
+      <button type="button" class="icon-btn" id="importClose" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="import-dropzone" id="importDropzone">
+        <span class="drop-icon">📂</span>
+        <b>Elegí el archivo JSON</b>
+        <small>Desde la app de escritorio: Exportar → JSON completo</small>
+        <button type="button" class="btn-primary" id="importSelectFile" style="margin-top:14px">
+          <span class="ico">📁</span>
+          <span>Seleccionar archivo</span>
+        </button>
+        <input type="file" id="importFileInput" accept=".json,application/json" hidden>
+      </div>
+      <div class="import-divider">o</div>
+      <div class="field">
+        <label for="importPasteArea">Pegar el contenido del JSON</label>
+        <textarea id="importPasteArea" rows="6" placeholder='{"version":5,"categories":{...}}' spellcheck="false"></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn-secondary" id="importCancel">Cancelar</button>
+      <button type="button" class="btn-primary" id="importConfirmPaste">Importar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MODAL LEGAL
+     ═══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="legalModal" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h2>Aviso legal</h2>
+      <button type="button" class="icon-btn" id="legalClose" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="lg-box yes">
+        <b>✅ Lo que SÍ hace</b>
+        <ul>
+          <li>Abre el reproductor oficial (Spotify, YouTube, etc.).</li>
+          <li>Usa solo links previamente guardados.</li>
+          <li>Guarda tu colección localmente en el celular.</li>
+        </ul>
+      </div>
+      <div class="lg-box no">
+        <b>❌ Lo que NO hace</b>
+        <ul>
+          <li>NO descarga audio ni video.</li>
+          <li>NO reproduce contenido no autorizado.</li>
+          <li>NO comparte tu colección con terceros.</li>
+          <li>NO requiere internet para consultar.</li>
+        </ul>
+      </div>
+      <div class="lg-box info">
+        <b>🔒 Privacidad</b>
+        <ul>
+          <li>Todos los datos quedan en tu celular.</li>
+          <li>No se envían a ningún servidor.</li>
+          <li>Podés borrarlos en cualquier momento.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn-primary" id="legalAccept" style="flex:1">Entendido</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MODAL ESTADÍSTICAS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="statsModal" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h2>Estadísticas</h2>
+      <button type="button" class="icon-btn" id="statsClose" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-body" id="statsBody"></div>
+    <div class="modal-foot">
+      <button type="button" class="btn-primary" id="statsAccept" style="flex:1">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     TOASTS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="toast-container" id="toasts"></div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     FOOTER
+     ═══════════════════════════════════════════════════════════ -->
+<footer class="app-footer" id="appFooter">
+  <span>📱 Modo consulta</span>
+  <span id="footerVersion">v7.1.0</span>
+</footer>
+
+<script src="app.js"></script>
+<script>
+(function(){
+  if (!window.Capacitor) return;
+  var P = window.Capacitor.Plugins || {};
+  var Browser = P.Browser, Share = P.Share, StatusBar = P.StatusBar, App = P.App;
+  var origOpen = window.open;
+  window.open = function(url, target, features){
+    if (url && typeof url === "string" && /^https?:/i.test(url) && Browser){
+      try { Browser.open({ url: url, presentationStyle: "popover" }); return null; } catch(e){}
+    }
+    return origOpen.call(window, url, target, features);
+  };
+  document.addEventListener("click", function(e){
+    var a = e.target && e.target.closest ? e.target.closest("a") : null;
+    if (!a || !a.href) return;
+    if (a.hasAttribute("download")) return;
+    if (a.href.indexOf("javascript:") === 0) return;
+    if (!/^https?:/i.test(a.href)) return;
+    if (a.origin === window.location.origin && a.target !== "_blank") return;
+    e.preventDefault();
+    if (Browser) Browser.open({ url: a.href }); else origOpen.call(window, a.href, "_blank");
+  }, true);
+  if (Share && navigator.share) {
+    var origShare = navigator.share.bind(navigator);
+    navigator.share = function(data){
+      return Share.share({ title: data.title || document.title || "Compartir", text: data.text || "", url: data.url || undefined, dialogTitle: "Compartir" })
+        .catch(function(err){ if (err && /cancel/i.test(err.message || "")) return; return origShare(data); });
+    };
+  }
+  function applyStatusBar(){
+    var isLight = document.body.classList.contains("light");
+    if (StatusBar){
+      StatusBar.setStyle({ style: isLight ? "LIGHT" : "DARK" }).catch(function(){});
+      StatusBar.setBackgroundColor({ color: isLight ? "#f5f7fa" : "#0e1116" }).catch(function(){});
+    }
+  }
+  if (StatusBar) applyStatusBar();
+  if (App) { App.addListener("backButton", function(){ App.exitApp(); }); }
+})();
+</script>
+</body>
+</html>
