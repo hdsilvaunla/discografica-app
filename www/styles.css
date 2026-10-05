@@ -1,6 +1,6 @@
 /* =========================================================
    Discografía Mobile — Modo consulta (APK)
-   v7.1.0 · Mobile-first · Material-inspired
+   v7.1.1 · Mobile-first · Material-inspired
    ========================================================= */
 
 :root{
@@ -1024,7 +1024,7 @@ body.theme-light .field select{background-image:url("data:image/svg+xml;charset=
 body.theme-light .stream-btn{background:rgba(0,0,0,.03)}
 body.theme-light .stream-btn:active{background:rgba(25,118,210,.08)}
 
-/* RESPONSIVE FINO */
+/* RESPONSIVE */
 @media (max-width:380px){
   .brand-text h1{font-size:.95rem}
   .cd-item{grid-template-columns:58px 1fr auto;gap:11px;padding:11px 14px}

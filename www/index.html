@@ -12,9 +12,6 @@
 </head>
 <body>
 
-<!-- ═══════════════════════════════════════════════════════════
-     HEADER
-     ═══════════════════════════════════════════════════════════ -->
 <header class="app-header">
   <div class="header-row">
     <div class="header-brand">
@@ -43,9 +40,6 @@
   </div>
 </header>
 
-<!-- ═══════════════════════════════════════════════════════════
-     BÚSQUEDA
-     ═══════════════════════════════════════════════════════════ -->
 <div class="search-bar" id="searchBar" hidden>
   <div class="search-input-wrap">
     <span class="search-ico">🔍</span>
@@ -58,29 +52,16 @@
   </button>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     CATEGORÍAS
-     ═══════════════════════════════════════════════════════════ -->
 <nav class="cat-nav" id="catNav" role="tablist" aria-label="Categorías" hidden></nav>
 
-<!-- ═══════════════════════════════════════════════════════════
-     SUBCATEGORÍAS
-     ═══════════════════════════════════════════════════════════ -->
 <nav class="subcat-nav" id="subcatNav" role="tablist" aria-label="Subcategorías" hidden></nav>
 
-<!-- ═══════════════════════════════════════════════════════════
-     FILTROS ACTIVOS
-     ═══════════════════════════════════════════════════════════ -->
 <div class="active-filters" id="activeFilters" hidden></div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     MAIN
-     ═══════════════════════════════════════════════════════════ -->
 <main class="app-main">
   <div class="list-info" id="listInfo" hidden></div>
   <ul class="cd-list" id="cdList" role="list"></ul>
 
-  <!-- Empty state inicial (sin datos) -->
   <div class="empty-state" id="emptyInitial">
     <div class="empty-hero">
       <span class="empty-icon">💿</span>
@@ -102,7 +83,6 @@
     </p>
   </div>
 
-  <!-- Empty state búsqueda -->
   <div class="empty-state" id="emptySearch" hidden>
     <div class="empty-hero">
       <span class="empty-icon">🔍</span>
@@ -113,9 +93,6 @@
   </div>
 </main>
 
-<!-- ═══════════════════════════════════════════════════════════
-     SHEET DE FILTROS
-     ═══════════════════════════════════════════════════════════ -->
 <div class="sheet-overlay" id="sheetOverlay" hidden></div>
 <aside class="sheet" id="filterSheet" hidden aria-label="Filtros">
   <div class="sheet-handle"></div>
@@ -130,11 +107,11 @@
     </div>
     <div class="field">
       <label for="fAnioDesde">Año desde</label>
-      <input type="number" id="fAnioDesde" min="1900" max="2100" placeholder="Ej: 1960" inputmode="numeric">
+      <input type="text" id="fAnioDesde" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="Ej: 1960" autocomplete="off">
     </div>
     <div class="field">
       <label for="fAnioHasta">Año hasta</label>
-      <input type="number" id="fAnioHasta" min="1900" max="2100" placeholder="Ej: 2026" inputmode="numeric">
+      <input type="text" id="fAnioHasta" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="Ej: 2026" autocomplete="off">
     </div>
     <div class="field">
       <label for="fSello">Sello</label>
@@ -179,9 +156,6 @@
   </div>
 </aside>
 
-<!-- ═══════════════════════════════════════════════════════════
-     SHEET DE MÁS OPCIONES
-     ═══════════════════════════════════════════════════════════ -->
 <div class="sheet-overlay" id="moreOverlay" hidden></div>
 <aside class="sheet" id="moreSheet" hidden aria-label="Más opciones">
   <div class="sheet-handle"></div>
@@ -229,9 +203,6 @@
   </div>
 </aside>
 
-<!-- ═══════════════════════════════════════════════════════════
-     DETALLE DEL CD
-     ═══════════════════════════════════════════════════════════ -->
 <div class="detail-overlay" id="detailOverlay" hidden></div>
 <aside class="detail-sheet" id="detailSheet" hidden aria-label="Detalle del CD">
   <div class="detail-head">
@@ -242,18 +213,12 @@
   <div class="detail-body" id="detailBody"></div>
 </aside>
 
-<!-- ═══════════════════════════════════════════════════════════
-     LIGHTBOX PORTADA
-     ═══════════════════════════════════════════════════════════ -->
 <div class="lightbox" id="lightbox" hidden>
   <button type="button" class="lb-close" id="lbClose" aria-label="Cerrar">✕</button>
   <img id="lbImg" src="" alt="">
   <div class="lb-info" id="lbInfo"></div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     MODAL IMPORTAR
-     ═══════════════════════════════════════════════════════════ -->
 <div class="modal-overlay" id="importModal" hidden>
   <div class="modal">
     <div class="modal-head">
@@ -284,9 +249,6 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     MODAL LEGAL
-     ═══════════════════════════════════════════════════════════ -->
 <div class="modal-overlay" id="legalModal" hidden>
   <div class="modal">
     <div class="modal-head">
@@ -326,9 +288,6 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     MODAL ESTADÍSTICAS
-     ═══════════════════════════════════════════════════════════ -->
 <div class="modal-overlay" id="statsModal" hidden>
   <div class="modal">
     <div class="modal-head">
@@ -342,17 +301,11 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     TOASTS
-     ═══════════════════════════════════════════════════════════ -->
 <div class="toast-container" id="toasts"></div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     FOOTER
-     ═══════════════════════════════════════════════════════════ -->
 <footer class="app-footer" id="appFooter">
   <span>📱 Modo consulta</span>
-  <span id="footerVersion">v7.1.0</span>
+  <span id="footerVersion">v7.1.1</span>
 </footer>
 
 <script src="app.js"></script>

@@ -1,12 +1,22 @@
 /* =========================================================================
-   DISCOGRAFÍA MOBILE v7.1.0 — Modo consulta (APK / WebView)
+   DISCOGRAFÍA MOBILE v7.1.1 — Modo consulta (APK / WebView)
    Read-only + Import prioritario · localStorage persistente
    Autor: HDSystem IT · Tel: +54 9 11 4563-0851
+
+   v7.1.1 — Fixes de auditoría:
+     - Back button Android corregido (pushBackIfNeeded en cada open)
+     - isVisible() helper robusto
+     - Toast container resuelto dinámicamente
+     - pushState con URL explícita
+     - normalizeCategory valida cds no-array
+     - Mensajes de error específicos en storage
+     - Footer oculto sin datos
+     - Lightbox con manejo de error
    ========================================================================= */
 
 'use strict';
 
-const APP_VERSION = '7.1.0';
+const APP_VERSION = '7.1.1';
 const STORAGE_KEY = 'discografia_mobile_data_v1';
 const PREFS_KEY   = 'discografia_mobile_prefs_v1';
 const LEGAL_KEY   = 'discografia_mobile_legal_v1';
@@ -60,6 +70,12 @@ function debounce(fn, ms = 180) {
   };
 }
 
+/* v7.1.1 — Helper de visibilidad robusto */
+function isVisible(sel) {
+  const el = $(sel);
+  return !!(el && !el.hidden);
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    Preferencias
    ═══════════════════════════════════════════════════════════════════ */
@@ -91,13 +107,13 @@ const Prefs = {
 };
 
 /* ═══════════════════════════════════════════════════════════════════
-   Toast
+   Toast — v7.1.1 resuelve container dinámicamente
    ═══════════════════════════════════════════════════════════════════ */
 const Toast = (() => {
-  const container = $('#toasts');
   const icons = { ok: '✓', err: '✕', warn: '⚠', info: 'ℹ' };
   return {
     show(msg, type = 'ok', ms = 3000) {
+      const container = $('#toasts');
       if (!container) return;
       const el = document.createElement('div');
       el.className = 'toast ' + type;
@@ -156,7 +172,16 @@ const Store = {
     };
   },
 
+  /* v7.1.1 — Valida que cds sea array (o convierte objeto) */
   normalizeCategory(cat, key) {
+    const cdsRaw = cat.cds;
+    let cds = [];
+    if (Array.isArray(cdsRaw)) {
+      cds = cdsRaw.map(c => this.hydrate(c));
+    } else if (cdsRaw && typeof cdsRaw === 'object') {
+      console.warn(`[Store] La categoría "${key}" tiene un objeto en lugar de array en "cds". Convirtiendo.`);
+      cds = Object.values(cdsRaw).map(c => this.hydrate(c));
+    }
     return {
       label: cat.label || key,
       icon: cat.icon || '📀',
@@ -165,7 +190,7 @@ const Store = {
         label: String(s.label || 'Sin nombre'),
         icon: String(s.icon || '📂')
       })) : [],
-      cds: Array.isArray(cat.cds) ? cat.cds.map(c => this.hydrate(c)) : []
+      cds
     };
   },
 
@@ -240,11 +265,17 @@ const Store = {
     App.cat = keys[0] || null;
     App.subcat = null;
 
+    /* v7.1.1 — Mensajes de error específicos */
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(App.db));
     } catch (e) {
       console.warn('No se pudo guardar en storage', e);
-      Toast.show('⚠️ No se pudo guardar (espacio lleno)', 'warn', 5000);
+      const isQuota = e.name === 'QuotaExceededError' || /quota/i.test(e.message || '');
+      if (isQuota) {
+        Toast.show('⚠️ Espacio lleno. Los datos NO se guardaron.', 'warn', 6000);
+      } else {
+        Toast.show('⚠️ No se pudo guardar en el celular. Los datos se perderán al cerrar.', 'warn', 7000);
+      }
     }
   },
 
@@ -390,6 +421,10 @@ const UI = {
   },
 
   renderHeader() {
+    /* v7.1.1 — Ocultar footer cuando no hay datos */
+    const footer = $('#appFooter');
+    if (footer) footer.hidden = !App.db;
+
     if (!App.db) {
       const hs = $('#headerStats');
       if (hs) hs.hidden = true;
@@ -705,6 +740,7 @@ const FilterSheet = {
     sheet.hidden = false;
     overlay.hidden = false;
     document.body.classList.add('has-modal');
+    pushBackIfNeeded();
   },
 
   close() {
@@ -740,8 +776,9 @@ const FilterSheet = {
 
   apply() {
     App.filters.artista = $('#fArtista').value;
-    App.filters.anioDesde = $('#fAnioDesde').value.trim();
-    App.filters.anioHasta = $('#fAnioHasta').value.trim();
+    /* v7.1.1 — Sanitizar años (solo dígitos) */
+    App.filters.anioDesde = ($('#fAnioDesde').value || '').replace(/\D/g, '');
+    App.filters.anioHasta = ($('#fAnioHasta').value || '').replace(/\D/g, '');
     App.filters.sello = $('#fSello').value;
     App.filters.genero = $('#fGenero').value;
     App.filters.portada = $('#fPortada').value;
@@ -796,6 +833,7 @@ const Detail = {
     sheet.hidden = false;
     overlay.hidden = false;
     document.body.classList.add('has-detail', 'has-modal');
+    pushBackIfNeeded();
   },
 
   close() {
@@ -965,7 +1003,7 @@ function isValidUrl(url) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   Lightbox
+   Lightbox — v7.1.1 con manejo de error
    ═══════════════════════════════════════════════════════════════════ */
 const Lightbox = {
   open(url, caption) {
@@ -974,9 +1012,17 @@ const Lightbox = {
     const img = $('#lbImg');
     const info = $('#lbInfo');
     if (!lb || !img) return;
+
+    img.onerror = () => {
+      Toast.show('⚠️ No se pudo cargar la portada', 'warn', 3000);
+      this.close();
+    };
+    img.onload = () => { img.onerror = null; };
+
     img.src = url;
     if (info) info.textContent = caption || '';
     lb.hidden = false;
+    pushBackIfNeeded();
   },
   close() {
     const lb = $('#lightbox');
@@ -998,6 +1044,7 @@ const Import = {
     document.body.classList.add('has-modal');
     const area = $('#importPasteArea');
     if (area) area.value = '';
+    pushBackIfNeeded();
   },
 
   closeModal() {
@@ -1069,6 +1116,8 @@ const MoreSheet = {
 
     const sv = $('#sheetVersion');
     if (sv) sv.textContent = `Discografía Mobile v${APP_VERSION}`;
+
+    pushBackIfNeeded();
   },
   close() {
     const sheet = $('#moreSheet');
@@ -1093,6 +1142,7 @@ const StatsModal = {
     const m = $('#statsModal');
     if (m) m.hidden = false;
     document.body.classList.add('has-modal');
+    pushBackIfNeeded();
   },
   close() {
     const m = $('#statsModal');
@@ -1175,6 +1225,7 @@ const Legal = {
     if (!m) return;
     m.hidden = false;
     document.body.classList.add('has-modal');
+    pushBackIfNeeded();
   },
   close() {
     const m = $('#legalModal');
@@ -1258,10 +1309,22 @@ function bindEvents() {
     MoreSheet.close();
     setTimeout(() => Import.openModal(), 200);
   });
+
+  /* v7.1.1 — Foco automático al pegar */
   $('#morePaste')?.addEventListener('click', () => {
     MoreSheet.close();
-    setTimeout(() => Import.openModal(), 200);
+    setTimeout(() => {
+      Import.openModal();
+      setTimeout(() => {
+        const ta = $('#importPasteArea');
+        if (ta) {
+          ta.focus();
+          ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 300);
+    }, 200);
   });
+
   $('#moreStats')?.addEventListener('click', () => {
     MoreSheet.close();
     setTimeout(() => StatsModal.open(), 200);
@@ -1335,34 +1398,36 @@ function bindEvents() {
 
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
-      if (!$('#lightbox')?.hidden) { Lightbox.close(); return; }
-      if (!$('#detailSheet')?.hidden) { Detail.close(); return; }
-      if (!$('#importModal')?.hidden) { Import.closeModal(); return; }
-      if (!$('#legalModal')?.hidden) { Legal.close(); return; }
-      if (!$('#statsModal')?.hidden) { StatsModal.close(); return; }
-      if (!$('#filterSheet')?.hidden) { FilterSheet.close(); return; }
-      if (!$('#moreSheet')?.hidden) { MoreSheet.close(); return; }
+      if (isVisible('#lightbox')) { Lightbox.close(); return; }
+      if (isVisible('#detailSheet')) { Detail.close(); return; }
+      if (isVisible('#importModal')) { Import.closeModal(); return; }
+      if (isVisible('#legalModal')) { Legal.close(); return; }
+      if (isVisible('#statsModal')) { StatsModal.close(); return; }
+      if (isVisible('#filterSheet')) { FilterSheet.close(); return; }
+      if (isVisible('#moreSheet')) { MoreSheet.close(); return; }
     }
   });
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   Back button Android
+   Back button Android — v7.1.1 corregido
    ═══════════════════════════════════════════════════════════════════ */
 function handleBackButton() {
-  if (!$('#lightbox')?.hidden) { Lightbox.close(); pushBackIfNeeded(); return; }
-  if (!$('#detailSheet')?.hidden) { Detail.close(); pushBackIfNeeded(); return; }
-  if (!$('#importModal')?.hidden) { Import.closeModal(); pushBackIfNeeded(); return; }
-  if (!$('#legalModal')?.hidden) { Legal.close(); pushBackIfNeeded(); return; }
-  if (!$('#statsModal')?.hidden) { StatsModal.close(); pushBackIfNeeded(); return; }
-  if (!$('#filterSheet')?.hidden) { FilterSheet.close(); pushBackIfNeeded(); return; }
-  if (!$('#moreSheet')?.hidden) { MoreSheet.close(); pushBackIfNeeded(); return; }
+  if (isVisible('#lightbox')) { Lightbox.close(); return; }
+  if (isVisible('#detailSheet')) { Detail.close(); return; }
+  if (isVisible('#importModal')) { Import.closeModal(); return; }
+  if (isVisible('#legalModal')) { Legal.close(); return; }
+  if (isVisible('#statsModal')) { StatsModal.close(); return; }
+  if (isVisible('#filterSheet')) { FilterSheet.close(); return; }
+  if (isVisible('#moreSheet')) { MoreSheet.close(); return; }
+  /* Si no hay nada abierto → comportamiento default (salir de la app) */
 }
 
+/* v7.1.1 — pushState con URL explícita (compatibilidad WebView) */
 function pushBackIfNeeded() {
   try {
     if (window.history && window.history.pushState) {
-      history.pushState({ app: 'discografia' }, '');
+      history.pushState({ app: 'discografia', ts: Date.now() }, '', location.href);
     }
   } catch (e) {}
 }
@@ -1372,10 +1437,8 @@ function pushBackIfNeeded() {
    ═══════════════════════════════════════════════════════════════════ */
 function init() {
   Prefs.load();
-  pushBackIfNeeded();
-
+  bindEvents();              /* primero el listener */
   const loaded = Store.loadFromStorage();
-
   UI.renderAll();
 
   if (!loaded) {
@@ -1384,7 +1447,6 @@ function init() {
     Toast.show(`✅ ${Store.total()} CDs cargados`, 'ok', 2500);
   }
 
-  bindEvents();
   Legal.maybeShowOnFirstRun();
 
   console.log(`%c💿 Discografía Mobile v${APP_VERSION}`, 'color:#4fc3f7;font-weight:bold;font-size:14px');
